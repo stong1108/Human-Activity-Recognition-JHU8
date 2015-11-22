@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Jhu-coursera-ml-project by stong1108</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Jhu-coursera-ml-project</h1>
+      <h2 class="project-tagline">Project submission for JHU Coursera ML class</h2>
+      <a href="https://github.com/stong1108/JHU-Coursera-ML-Project" class="btn">View on GitHub</a>
+      <a href="https://github.com/stong1108/JHU-Coursera-ML-Project/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/stong1108/JHU-Coursera-ML-Project/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <h3>
+<a id="introduction" class="anchor" href="#introduction" aria-hidden="true"><span class="octicon octicon-link"></span></a>Introduction</h3>
+
+<p>The goal of this study is to train a model to correctly identify "classes" in which barbell lifts are performed. The dataset (obtained from <a href="http://groupware.les.inf.puc-rio.br/har">http://groupware.les.inf.puc-rio.br/har</a>) is comprised of 93 variables, mostly accelerometer measurements of participants performing barbell lifts in 5 different ways (classes). </p>
+
+<h3>
+<a id="setup" class="anchor" href="#setup" aria-hidden="true"><span class="octicon octicon-link"></span></a>Setup</h3>
+
+<p>We will be using the <code>caret</code> and the <code>randomForest</code> package for this study:</p>
+
+<div class="highlight highlight-source-r"><pre>require(<span class="pl-smi">caret</span>)
+require(<span class="pl-smi">randomForest</span>)</pre></div>
+
+<h3>
+<a id="data-cleaning" class="anchor" href="#data-cleaning" aria-hidden="true"><span class="octicon octicon-link"></span></a>Data Cleaning</h3>
+
+<p>First we do some cleaning on our dataset. Here, we remove the first 7 variables used for identifying the observation, any variables that are incomplete (columns containing <code>NA</code> entries), and any variables that are not numeric.</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-smi">data</span> <span class="pl-k">&lt;-</span> read.csv(<span class="pl-s"><span class="pl-pds">"</span>pml-training.csv<span class="pl-pds">"</span></span>)
+<span class="pl-smi">classe</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">data</span><span class="pl-k">$</span><span class="pl-smi">classe</span>
+
+<span class="pl-c"># Cleaning</span>
+<span class="pl-smi">data</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">data</span>[,<span class="pl-k">-</span>c(<span class="pl-c1">1</span><span class="pl-k">:</span><span class="pl-c1">7</span>)]
+<span class="pl-smi">data</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">data</span>[,colSums(is.na(<span class="pl-smi">data</span>))<span class="pl-k">==</span><span class="pl-c1">0</span>]
+<span class="pl-smi">data</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">data</span>[,sapply(<span class="pl-smi">data</span>, <span class="pl-smi">is.numeric</span>)]
+<span class="pl-smi">numData</span> <span class="pl-k">&lt;-</span> cbind(<span class="pl-smi">data</span>, <span class="pl-smi">classe</span>)</pre></div>
+
+<h3>
+<a id="model-training" class="anchor" href="#model-training" aria-hidden="true"><span class="octicon octicon-link"></span></a>Model Training</h3>
+
+<p>We split the dataset into 70% training and 30% testing. Our first model is constructed using random forests because 1) cross-validation is built into the training method since bootstrapping is used for multiple trees, 2) random forests work well for larger numbers of observations (there are 13737 observations in the training set).</p>
+
+<p>Our first model will be trained using the cleaned dataset containing 53 variables.</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c"># Train model</span>
+<span class="pl-smi">inTrain</span> <span class="pl-k">&lt;-</span> createDataPartition(<span class="pl-smi">numData</span><span class="pl-k">$</span><span class="pl-smi">classe</span>, <span class="pl-v">p</span> <span class="pl-k">=</span> <span class="pl-c1">0.7</span>, <span class="pl-v">list</span> <span class="pl-k">=</span> <span class="pl-c1">FALSE</span>)
+<span class="pl-smi">training</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">numData</span>[<span class="pl-smi">inTrain</span>,]
+<span class="pl-smi">testing</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">numData</span>[<span class="pl-k">-</span><span class="pl-smi">inTrain</span>,]
+<span class="pl-smi">model</span> <span class="pl-k">&lt;-</span> randomForest(<span class="pl-smi">classe</span><span class="pl-k">~</span>., <span class="pl-smi">training</span>)
+
+<span class="pl-c"># Test model</span>
+<span class="pl-smi">pred</span> <span class="pl-k">&lt;-</span> predict(<span class="pl-smi">model</span>, <span class="pl-smi">testing</span>)
+confusionMatrix(<span class="pl-smi">pred</span>, <span class="pl-smi">testing</span><span class="pl-k">$</span><span class="pl-smi">classe</span>)</pre></div>
+
+<p>Here, we create a second model in which we remove highly correlated variables. The cutoff correlation value that we will use to characterize variables as highly correlated will be set as 0.75.</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c"># Create another model with less variables</span>
+<span class="pl-c"># Remove highly correlated variables (remove &gt;= 0.75)</span>
+<span class="pl-smi">corrMatrix</span> <span class="pl-k">&lt;-</span> cor(<span class="pl-smi">data</span>)
+<span class="pl-smi">highCorr</span> <span class="pl-k">&lt;-</span> findCorrelation(<span class="pl-smi">corrMatrix</span>, <span class="pl-v">cutoff</span> <span class="pl-k">=</span> <span class="pl-c1">0.75</span>)
+<span class="pl-smi">lowCorrData</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">data</span>[,<span class="pl-k">-</span><span class="pl-smi">highCorr</span>]
+<span class="pl-smi">lowCorrData</span> <span class="pl-k">&lt;-</span> cbind(<span class="pl-smi">lowCorrData</span>, <span class="pl-smi">classe</span>)
+
+<span class="pl-c"># Train model</span>
+<span class="pl-smi">inTrain2</span> <span class="pl-k">&lt;-</span> createDataPartition(<span class="pl-smi">lowCorrData</span><span class="pl-k">$</span><span class="pl-smi">classe</span>, <span class="pl-v">p</span> <span class="pl-k">=</span> <span class="pl-c1">0.7</span>, <span class="pl-v">list</span> <span class="pl-k">=</span> <span class="pl-c1">FALSE</span>)
+<span class="pl-smi">training2</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">lowCorrData</span>[<span class="pl-smi">inTrain2</span>,]
+<span class="pl-smi">testing2</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">lowCorrData</span>[<span class="pl-k">-</span><span class="pl-smi">inTrain2</span>,]
+<span class="pl-smi">model2</span> <span class="pl-k">&lt;-</span> randomForest(<span class="pl-smi">classe</span><span class="pl-k">~</span>., <span class="pl-smi">training2</span>)
+
+<span class="pl-c"># Test model</span>
+<span class="pl-smi">pred2</span> <span class="pl-k">&lt;-</span> predict(<span class="pl-smi">model2</span>, <span class="pl-smi">testing2</span>)
+confusionMatrix(<span class="pl-smi">pred2</span>, <span class="pl-smi">testing2</span><span class="pl-k">$</span><span class="pl-smi">classe</span>)</pre></div>
+
+<p>This model cuts down on training time with only 32 variables and has the comparable results and performance as the first model on the testing set. Model2 will be used for the rest of the analysis portion of this project. </p>
+
+<h3>
+<a id="analysis" class="anchor" href="#analysis" aria-hidden="true"><span class="octicon octicon-link"></span></a>Analysis</h3>
+
+<p>Below is a plot of the variable importance.</p>
+
+<div class="highlight highlight-source-r"><pre>varImpPlot(<span class="pl-smi">model2</span>, <span class="pl-v">cex</span> <span class="pl-k">=</span> <span class="pl-c1">0.5</span>, <span class="pl-v">main</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>Variable Importance<span class="pl-pds">"</span></span>)</pre></div>
+
+<p>As stated earlier, cross-validation is built into the model, since bootstrapping is used for assessing multiple trees. We can obtain the out-of-sample error from our assessment with the testing data subset.</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-v">oosError</span> <span class="pl-k">=</span> <span class="pl-k">function</span>(<span class="pl-smi">actual</span>, <span class="pl-smi">predicted</span>) {
+  sum(<span class="pl-smi">predicted</span> <span class="pl-k">!=</span> <span class="pl-smi">actual</span>)<span class="pl-k">/</span>length(<span class="pl-smi">actual</span>)
+}
+
+<span class="pl-smi">oos</span> <span class="pl-k">&lt;-</span> oosError(<span class="pl-smi">pred2</span>, <span class="pl-smi">testing2</span><span class="pl-k">$</span><span class="pl-smi">classe</span>)
+<span class="pl-smi">percent</span> <span class="pl-k">&lt;-</span> round(<span class="pl-smi">oos</span><span class="pl-k">*</span><span class="pl-c1">100</span>, <span class="pl-c1">2</span>)</pre></div>
+
+<p>The out-of-sample error rate for our model is <em>0.76%</em>. Yay :D</p>
+
+<h3>
+<a id="assignment-portion" class="anchor" href="#assignment-portion" aria-hidden="true"><span class="octicon octicon-link"></span></a>Assignment Portion</h3>
+
+<p>This portion of the project predicts the values of the <code>pml-testing.csv</code> dataset and creates text files for submission.</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c"># Predict classe of the testing set</span>
+<span class="pl-smi">testData</span> <span class="pl-k">&lt;-</span> read.csv(<span class="pl-s"><span class="pl-pds">"</span>pml-testing.csv<span class="pl-pds">"</span></span>)
+<span class="pl-smi">answers</span> <span class="pl-k">&lt;-</span> predict(<span class="pl-smi">model2</span>, <span class="pl-smi">testData</span>)
+<span class="pl-smi">answers</span> <span class="pl-k">&lt;-</span> as.character(<span class="pl-smi">answers</span>)
+
+<span class="pl-c"># Write answers to text files</span>
+<span class="pl-v">pml_write_files</span> <span class="pl-k">=</span> <span class="pl-k">function</span>(<span class="pl-smi">x</span>){
+  <span class="pl-v">n</span> <span class="pl-k">=</span> length(<span class="pl-smi">x</span>)
+  <span class="pl-k">for</span>(<span class="pl-smi">i</span> <span class="pl-k">in</span> <span class="pl-c1">1</span><span class="pl-k">:</span><span class="pl-smi">n</span>){
+    <span class="pl-v">filename</span> <span class="pl-k">=</span> paste0(<span class="pl-s"><span class="pl-pds">"</span>problem_id_<span class="pl-pds">"</span></span>,<span class="pl-smi">i</span>,<span class="pl-s"><span class="pl-pds">"</span>.txt<span class="pl-pds">"</span></span>)
+    write.table(<span class="pl-smi">x</span>[<span class="pl-smi">i</span>],<span class="pl-v">file</span><span class="pl-k">=</span><span class="pl-smi">filename</span>,<span class="pl-v">quote</span><span class="pl-k">=</span><span class="pl-c1">FALSE</span>,<span class="pl-v">row.names</span><span class="pl-k">=</span><span class="pl-c1">FALSE</span>,<span class="pl-v">col.names</span><span class="pl-k">=</span><span class="pl-c1">FALSE</span>)
+  }
+}
+
+pml_write_files(<span class="pl-smi">answers</span>)</pre></div>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/stong1108/JHU-Coursera-ML-Project">Jhu-coursera-ml-project</a> is maintained by <a href="https://github.com/stong1108">stong1108</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
