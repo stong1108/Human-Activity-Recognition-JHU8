@@ -1,24 +1,105 @@
 ---
-title: "JHU Machine Learning Project"
+title: "JHU Machine Learning Project - Human Activity Recognition"
 author: "Stephanie Tong"
 date: "November 14, 2015"
 output: html_document
 ---
 
-http://groupware.les.inf.puc-rio.br/har
+### Introduction
+The goal of this study is to train a model to correctly identify "classes" in which barbell lifts are performed. The dataset (obtained from <http://groupware.les.inf.puc-rio.br/har>) is comprised of 93 variables, mostly accelerometer measurements of participants performing barbell lifts in 5 different ways (classes). 
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+### Setup
+We will be using the `caret` and the `randomForest` package for this study:
+```{r, message = FALSE, warning = FALSE}
+require(caret)
+require(randomForest)
+```
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+### Data Cleaning
+First we do some cleaning on our dataset. Here, we remove the first 7 variables used for identifying the observation, any variables that are incomplete (columns containing `NA` entries), and any variables that are not numeric.
+```{r}
+data <- read.csv("pml-training.csv")
+classe <- data$classe
+
+# Cleaning
+data <- data[,-c(1:7)]
+data <- data[,colSums(is.na(data))==0]
+data <- data[,sapply(data, is.numeric)]
+numData <- cbind(data, classe)
+```
+
+### Model Training
+We split the dataset into 70% training and 30% testing. Our first model is constructed using random forests because 1) cross-validation is built into the training method since bootstrapping is used for multiple trees, 2) random forests work well for larger numbers of observations (there are 13737 observations in the training set).
+
+Our first model will be trained using the cleaned dataset containing 53 variables.
+```{r}
+# Train model
+inTrain <- createDataPartition(numData$classe, p = 0.7, list = FALSE)
+training <- numData[inTrain,]
+testing <- numData[-inTrain,]
+model <- randomForest(classe~., training)
+
+# Test model
+pred <- predict(model, testing)
+confusionMatrix(pred, testing$classe)
+```
+
+Here, we create a second model in which we remove highly correlated variables. The cutoff correlation value that we will use to characterize variables as highly correlated will be set as 0.75.
+```{r}
+# Create another model with less variables
+# Remove highly correlated variables (remove >= 0.75)
+corrMatrix <- cor(data)
+highCorr <- findCorrelation(corrMatrix, cutoff = 0.75)
+lowCorrData <- data[,-highCorr]
+lowCorrData <- cbind(lowCorrData, classe)
+
+# Train model
+inTrain2 <- createDataPartition(lowCorrData$classe, p = 0.7, list = FALSE)
+training2 <- lowCorrData[inTrain2,]
+testing2 <- lowCorrData[-inTrain2,]
+model2 <- randomForest(classe~., training2)
+
+# Test model
+pred2 <- predict(model2, testing2)
+confusionMatrix(pred2, testing2$classe)
+```
+
+This model cuts down on training time with only 32 variables and has the comparable results and performance as the first model on the testing set. Model2 will be used for the rest of the analysis portion of this project. 
+
+### Analysis
+Below is a plot of the variable importance.
+```{r fig.width = 3, fig.height = 3, fig.align='center'}
+varImpPlot(model2, cex = 0.5, main = "Variable Importance")
+```
+
+As stated earlier, cross-validation is built into the model, since bootstrapping is used for assessing multiple trees. We can obtain the out-of-sample error from our assessment with the testing data subset.
 
 ```{r}
-summary(cars)
+oosError = function(actual, predicted) {
+  sum(predicted != actual)/length(actual)
+}
+
+oos <- oosError(pred2, testing2$classe)
+percent <- round(oos*100, 2)
 ```
+The out-of-sample error rate for our model is *0.76%*. Yay :D
 
-You can also embed plots, for example:
+### Assignment Portion
+This portion of the project predicts the values of the `pml-testing.csv` dataset and creates text files for submission.
+```{r}
+# Predict classe of the testing set
+testData <- read.csv("pml-testing.csv")
+answers <- predict(model2, testData)
+answers <- as.character(answers)
 
-```{r, echo=FALSE}
-plot(cars)
+# Write answers to text files
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(answers)
 ```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
